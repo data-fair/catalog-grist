@@ -1,165 +1,270 @@
-import type CatalogPlugin from '@data-fair/types-catalogs'
-import { strict as assert } from 'node:assert'
-import { it, describe, before, beforeEach } from 'node:test'
-import fs from 'fs-extra'
+import { list } from '../lib/imports.ts'
+import type { GetResourceContext, ListContext } from '@data-fair/types-catalogs'
+import { afterEach, beforeEach, describe, it } from 'node:test'
+import nock from 'nock'
+import assert from 'node:assert'
+import type { Document, GristConfig, Organization, Table, Workspace } from '#types'
+import type { GristCapabilities } from '../lib/capabilities.ts'
+import { getResource } from '../lib/download.ts'
+import fs from 'fs'
+import path, { dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-// Import plugin and use default type like it's done in Catalogs
-import plugin from '../index.ts'
-const catalogPlugin: CatalogPlugin = plugin as CatalogPlugin
+describe('list', () => {
+  const catalogConfig = {
+    //   /!\ il faut le redéfinir a chaque test (a cause du memoize) à moins d'utiliser un current.resourceId différent à chaque test
+    url: 'https://example.com',
+    apiKey: 'abcde'
+  }
 
-/** Mock catalog configuration for testing purposes. */
-const catalogConfig = {
-  url: 'http://localhost:3000',
-}
+  const context: ListContext<GristConfig, GristCapabilities> = {
+    catalogConfig,
+    params: {},
+    secrets: { apiKey: 'abcde' }
+  }
 
-/** Mock secrets for testing purposes. */
-const secrets = {
-  secretField: 'Hey'
-}
-
-describe('catalog-mock', () => {
-  it('should list resources and folder from root', async () => {
-    const res = await catalogPlugin.list({
-      catalogConfig,
-      secrets,
-      params: {}
-    })
-
-    assert.equal(res.count, 2, 'Expected 2 items in the root folder')
-    assert.equal(res.results.length, 2)
-    assert.equal(res.results[0].type, 'folder', 'Expected folders in the root folder')
-
-    assert.equal(res.path.length, 0, 'Expected no path for root folder')
+  beforeEach(() => {
+    nock.cleanAll()
+    context.params = {}
   })
 
-  it('should list resources and folder from a folder', async () => {
-    const res = await catalogPlugin.list({
-      catalogConfig,
-      secrets,
-      params: { currentFolderId: 'category-geospatial' }
+  describe('tests with mock requests', async () => {
+    it('should list Organizations successfully', async () => {
+      const mockResponse: Organization[] = [{
+        name: 'Personal',
+        id: 1,
+        domain: 'org-1',
+        owner: { name: 'UserTest' }
+      }, {
+        name: 'orgaTest',
+        id: 2,
+        domain: 'org-2'
+      }]
+
+      nock('https://example.com')
+        .get('/api/orgs')
+        .reply(200, mockResponse)
+
+      const result = await list(context)
+
+      assert.ok(result)
+      assert.strictEqual(result.results.length, 2)
+      assert.strictEqual(result.path.length, 0)
+      assert.ok(result.results.some(orga => orga.title === 'Personal (@UserTest)' && orga.id === '/orgs/1'))
+      assert.ok(result.results.some(orga => orga.title === 'orgaTest' && orga.id === '/orgs/2'))
     })
 
-    assert.equal(res.count, 2, 'Expected 2 items in category-geospatial folder')
-    assert.equal(res.results.length, 2)
-    assert.equal(res.results[0].type, 'folder', 'Expected folders in category-geospatial folder')
+    it('should list workspaces successfully ', async () => {
+      context.params.currentFolderId = '/orgs/1'
+      const mockResponseWS: Workspace[] = [{
+        name: 'wsp 1',
+        id: 1,
+        docs: [{
+          name: 'doc1',
+          id: 'd1'
+        }]
+      }, {
+        name: 'wsp 2',
+        id: 2,
+        docs: []
+      }]
 
-    assert.equal(res.path.length, 1, 'Expected path to contain the current folder')
-    assert.equal(res.path[0].id, 'category-geospatial')
+      const mockResponseOrg: Organization = {
+        name: 'Personal',
+        id: 1,
+        domain: 'org-1'
+      }
+
+      nock('https://example.com')
+        .get('/api/orgs/1/workspaces')
+        .reply(200, mockResponseWS)
+
+      nock('https://example.com')
+        .get('/api/orgs/1')
+        .reply(200, mockResponseOrg)
+
+      const result = await list(context)
+      assert.ok(result)
+      assert.strictEqual(result.results.length, 2)
+
+      assert.strictEqual(result.path.length, 1)
+    })
+
+    it('should list documents successfully ', async () => {
+      context.params.currentFolderId = '/workspaces/1'
+      const mockDocs: Workspace = {
+        name: 'wsp 1',
+        id: 1,
+        docs: [{
+          name: 'doc1',
+          id: 'd1'
+        }, {
+          name: 'doc2',
+          id: 'd2'
+        }],
+        org: {
+          name: 'Personal',
+          id: 1,
+          domain: 'org-1'
+        }
+      }
+
+      nock('https://example.com')
+        .get('/api/workspaces/1')
+        .reply(200, mockDocs)
+
+      const result = await list(context)
+      assert.ok(result)
+      assert.strictEqual(result.results.length, 2)
+      assert.ok(result.results.some(doc => doc.title === 'doc1' && doc.id === 'org-1|/docs/d1'))
+      assert.ok(result.results.some(doc => doc.title === 'doc2' && doc.id === 'org-1|/docs/d2'))
+      assert.strictEqual(result.path.length, 2)
+      assert.strictEqual(result.path[0].title, 'Personal')
+      assert.strictEqual(result.path[0].id, '/orgs/1')
+      assert.strictEqual(result.path[1].title, 'wsp 1')
+      assert.strictEqual(result.path[1].id, '/workspaces/1')
+    })
+
+    it('should list tables when currentFolderId includes a domain and document ID', async () => {
+      context.params.currentFolderId = 'org-1|/docs/d1'
+      const mockTables: { tables: Table[] } = {
+        tables: [
+          { id: 'Table1' },
+          { id: 'Table2' }
+        ]
+      }
+
+      const mockDoc: Document = {
+        name: 'doc1',
+        id: 'd1',
+        workspace: {
+          name: 'wsp 1',
+          id: 1,
+          org: {
+            name: 'Personal',
+            id: 1,
+            domain: 'org-1'
+          }
+        }
+      }
+
+      // Mock the API response for tables
+      nock('https://example.com')
+        .get('/o/org-1/api/docs/d1/tables')
+        .reply(200, mockTables)
+
+      nock('https://example.com')
+        .get('/o/org-1/api/docs/d1')
+        .reply(200, mockDoc)
+
+      const result = await list(context)
+
+      assert.strictEqual(result.count, 2)
+      assert.strictEqual(JSON.stringify(result.results), JSON.stringify([
+        { id: 'org-1|d1|Table1', title: 'Table1', type: 'resource', format: 'csv' },
+        { id: 'org-1|d1|Table2', title: 'Table2', type: 'resource', format: 'csv' }
+      ]))
+      assert.strictEqual(result.path[0].title, 'Personal')
+      assert.strictEqual(result.path[0].id, '/orgs/1')
+      assert.strictEqual(result.path[1].title, 'wsp 1')
+      assert.strictEqual(result.path[1].id, '/workspaces/1')
+      assert.strictEqual(result.path[2].title, 'doc1')
+      assert.strictEqual(result.path[2].id, 'org-1|/docs/d1')
+    })
+
+    it('should handle API errors', async () => {
+      context.params.currentFolderId = '/orgs/3'
+
+      nock('https://example.com')
+        .get('/api/orgs/3/workspaces')
+        .reply(500, { error: 'Internal Server Error' })
+
+      try {
+        await list(context)
+        assert.fail('Expected an error to be thrown')
+      } catch (error) {
+        assert.ok(error instanceof Error && error.message.includes('Erreur pendant la récupération des données'))
+      }
+    })
   })
+})
 
-  it('should list resources and folder with pagination', { skip: 'This catalog does not support pagination' }, async () => {})
+describe('getResource', async () => {
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = dirname(__filename)
 
-  describe('should download a resource', async () => {
-    const tmpDir = './data/test/downloads'
-
-    // Ensure the temporary directory exists once for all tests
-    before(async () => await fs.ensureDir(tmpDir))
-
-    // Clear the temporary directory before each test
-    beforeEach(async () => await fs.emptyDir(tmpDir))
-
-    it('with correct params', async () => {
-      const resourceId = 'category-demographic/resource-population-2023'
-      const resource = await catalogPlugin.getResource({
-        catalogConfig,
-        secrets,
-        resourceId,
-        importConfig: {
-          nbRows: 10
-        },
-        tmpDir
-      })
-
-      assert.ok(resource, 'The resource should exist')
-
-      assert.equal(resource.id, resourceId, 'Resource ID should match')
-      assert.equal(resource.title, 'Population par commune 2023', 'Resource title should match')
-
-      assert.ok(resource.filePath, 'Download URL should not be undefined')
-      assert.ok(resource.filePath.endsWith('jdd-mock.csv'), 'Download URL should contain the downloaded file name')
-
-      // Check if the file exists
-      const fileExists = await fs.pathExists(resource.filePath)
-      assert.ok(fileExists, 'The downloaded file should exist')
-    })
-
-    it('should fail for bad importConfig', async () => {
-      const resourceId = 'category-demographic/resource-population-2023'
-
-      await assert.rejects(
-        async () => {
-          await catalogPlugin.getResource({
-            catalogConfig,
-            secrets,
-            resourceId,
-            importConfig: {
-              nbRows: 100 // This exceeds the maximum of 50
-            },
-            tmpDir
-          })
-        },
-        'Should throw a validation error for nbRows > 50'
-      )
-    })
-
-    it('should fail for resource not found', async () => {
-      const resourceId = 'non-existent-resource'
-
-      await assert.rejects(
-        async () => {
-          await catalogPlugin.getResource({
-            catalogConfig,
-            secrets,
-            resourceId,
-            importConfig: {
-              nbRows: 10
-            },
-            tmpDir
-          })
-        },
-        /not found|does not exist/i,
-        'Should throw an error for non-existent resource'
-      )
-    })
-  })
-
-  it('should publish a resource', async () => {
-    const dataset = {
-      id: 'test-dataset',
-      title: 'Test Dataset',
-      description: 'This is a test dataset'
+  describe('tests with mock requests', () => {
+    const catalogConfig = {
+      url: 'https://example.com',
+      apiKey: 'abcde'
     }
-    const publication = { isResource: false }
-    const publicationSite = {
-      title: 'Test Site',
-      url: 'http://example.com',
-      datasetUrlTemplate: 'http://example.com/data-fair/{id}'
+
+    const secrets = { apiKey: 'abcde' }
+    const tmpDir = path.join(__dirname, 'tmp')
+    const resourceId = 'domain1|doc1|table1'
+
+    // Ensure the temporary directory exists
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir)
     }
 
-    const result = await catalogPlugin.publishDataset({
+    const context: GetResourceContext<typeof catalogConfig> = {
       catalogConfig,
       secrets,
-      dataset,
-      publication,
-      publicationSite
-    })
-    assert.ok(result, 'The publication should be successful')
-    assert.ok(result.remoteDataset, 'The returned publication should have a remote dataset')
-    assert.equal(result.remoteDataset.id, 'my-mock-test-dataset', 'The returned publication should have a remote dataset with an ID')
-    assert.equal(result.isResource, publication.isResource, 'Publication type should not be changed')
-  })
+      resourceId,
+      tmpDir,
+      importConfig: {}
+    }
 
-  it('should delete a resource', async () => {
-    const datasetId = 'test-dataset'
-    const resourceId = 'category-demographic/resource-population-2023'
-
-    await catalogPlugin.deleteDataset({
-      catalogConfig,
-      secrets,
-      datasetId,
-      resourceId
+    beforeEach(() => {
+      // Clean up the tmp directory before each test
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true })
+      }
+      fs.mkdirSync(tmpDir)
     })
-    // Since this is a mock plugin, we cannot verify the deletion, but we can check that no error is thrown
-    assert.ok(true, 'Delete operation should not throw an error')
+
+    afterEach(() => {
+      // Clean up the tmp directory after each test
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true })
+      }
+    })
+
+    it('should download a resource successfully', async () => {
+      const mockResponse = 'csv,data,here'
+
+      nock('https://example.com')
+        .get('/o/domain1/api/docs/doc1/download/csv?tableId=table1')
+        .reply(200, mockResponse)
+
+      const result = await getResource(context)
+
+      assert.ok(result)
+      assert.strictEqual(result.id, resourceId)
+      assert.strictEqual(result.title, 'table1')
+      assert.strictEqual(result.format, 'csv')
+      assert.strictEqual(result.mimeType, 'text/csv')
+      assert.strictEqual(result.origin, 'https://example.com/o/domain1/doc1')
+      assert.strictEqual(result.filePath, path.join(tmpDir, 'table1.csv'))
+
+      // Verify that the file was written to the file system
+      const fileContent = fs.readFileSync(path.join(tmpDir, 'table1.csv'), 'utf-8')
+      assert.strictEqual(fileContent, mockResponse)
+    })
+
+    it('should handle API errors', async () => {
+      nock('https://example.com')
+        .get('/o/domain1/api/docs/doc1/download/csv?tableId=table1')
+        .reply(500, { error: 'Internal Server Error' })
+
+      try {
+        await getResource(context)
+        assert.fail('Expected an error to be thrown')
+      } catch (error) {
+        console.log(error)
+        assert.ok(error instanceof Error && error.message.includes('Erreur pendant la récupération des données'))
+      }
+    })
   })
 })

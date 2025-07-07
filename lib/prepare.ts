@@ -1,31 +1,17 @@
 import type { PrepareContext } from '@data-fair/types-catalogs'
-import type { MockCapabilities } from './capabilities.ts'
-import type { MockConfig } from '#types'
+import type { GristCapabilities } from './capabilities.ts'
+import type { GristConfig } from '#types'
 
-export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<MockConfig, MockCapabilities>) => {
-  // Manage secrets
-  const secretField = catalogConfig.secretField
-  // If the config contains a secretField, and it is not already hidden
-  if (secretField && secretField !== '********') {
-    // Hide the secret in the catalogConfig, and copy it to secrets
-    secrets.secretField = secretField
-    catalogConfig.secretField = '********'
-
-  // If the secretField is in the secrets, and empty in catalogConfig,
-  // then it means the user has cleared the secret in the config
-  } else if (secrets?.secretField && secretField === '') {
-    delete secrets.secretField
+export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<GristConfig, GristCapabilities>) => {
+  const apiKey = catalogConfig.apiKey
+  if (apiKey && apiKey !== '********') {
+    secrets.apiKey = apiKey
+    catalogConfig.apiKey = '********'
+  } else if (secrets?.apiKey && apiKey === '') {
+    delete secrets.apiKey
   } else {
     // The secret is already set, do nothing
   }
-
-  // Manage capabilities
-  if (catalogConfig.searchCapability && !capabilities.includes('search')) capabilities.push('search')
-  else capabilities = capabilities.filter(c => c !== 'search')
-
-  if (catalogConfig.paginationCapability && !capabilities.includes('pagination')) capabilities.push('pagination')
-  else capabilities = capabilities.filter(c => c !== 'pagination')
-
   return {
     catalogConfig,
     capabilities,

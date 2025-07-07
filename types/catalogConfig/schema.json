@@ -1,24 +1,24 @@
 {
-  "$id": "https://github.com/data-fair/catalog-mock/catalog-config",
+  "$id": "https://github.com/data-fair/catalog-grist/catalog-config",
   "x-exports": [
     "types",
     "validate",
     "schema"
   ],
-  "title": "MockConfig",
+  "title": "GristConfig",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "url",
-    "delay"
+    "apiKey"
   ],
   "properties": {
     "url": {
       "type": "string",
       "title": "URL",
-      "description": "The url of the catalog",
+      "description": "The url of the catalog. The url should not**pas** contains the `/o/name-of-team-space`",
       "x-i18n-description": {
-        "fr": "L'URL de l'API du catalogue"
+        "fr": "L'URL de l'API du catalogue. L'URL ne doit **pas** contenir de `/o/nom-de-l-espace-d-equipe`"
       },
       "pattern": "^https?://.*[^/]$",
       "errorMessage": "The URL must start with http:// or https:// and must not end with `/`.",
@@ -27,60 +27,13 @@
       },
       "examples": ["https://example.com"]
     },
-    "secretField": {
+    "apiKey": {
       "type": "string",
-      "title": "Secret Field",
-      "x-i18n-title": {
-        "fr": "Champ chiffré"
-      },
-      "description": "A secret field that is ciphered but for testing purposes, shown in the description of imported datasets.",
+      "title": "clé d'API",
+      "description": "Your api KEY, accessible from your **Profile Settings**. Create, copy and paste here your API key.",
       "x-i18n-description": {
-        "fr": "Un champ secret qui est chiffré mais qui, à des fins de test, est affiché dans la description des jeux de données importés."
-      },
-      "layout": {
-        "props": {
-          "type": "password",
-          "autocomplete": "new-password"
-        }
+        "fr": "Votre clé d'API, accessible depuis vos **Paramètres du compte**. Créer, copier et coller ici votre clé d'API."
       }
-    },
-    "delay": {
-      "type": "number",
-      "title": "Response Delay",
-      "x-i18n-title": {
-        "fr": "Délai de réponse"
-      },
-      "description": "Adds a response delay (in ms) to requests to simulate server response time.",
-      "x-i18n-description": {
-        "fr": "Ajoute un temps de réponse (en ms) aux requêtes pour simuler un délai de réponse du serveur."
-      },
-      "default": 1000,
-      "minimum": 0,
-      "maximum": 60000
-    },
-    "searchCapability": {
-      "type": "boolean",
-      "title": "Search Capability",
-      "x-i18n-title": {
-        "fr": "Capacité de recherche"
-      },
-      "description": "Indicates whether the catalog dynamically supports the search feature.",
-      "x-i18n-description": {
-        "fr": "Indique si le catalogue prend en charge dynamiquement la fonctionnalité de recherche."
-      },
-      "default": true
-    },
-    "paginationCapability": {
-      "type": "boolean",
-      "title": "Pagination Capability",
-      "x-i18n-title": {
-        "fr": "Capacité de pagination"
-      },
-      "description": "Indicates whether the catalog dynamically supports pagination.",
-      "x-i18n-description": {
-        "fr": "Indique si le catalogue prend en charge dynamiquement la pagination."
-      },
-      "default": true
     }
   }
 }

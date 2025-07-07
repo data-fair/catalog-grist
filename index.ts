@@ -1,14 +1,12 @@
 import type CatalogPlugin from '@data-fair/types-catalogs'
-import { importConfigSchema, configSchema, assertConfigValid, type MockConfig } from '#types'
-import { type MockCapabilities, capabilities } from './lib/capabilities.ts'
-import Debug from 'debug'
-const debug = Debug('catalog-mock')
+import { configSchema, assertConfigValid, type GristConfig } from '#types'
+import { type GristCapabilities, capabilities } from './lib/capabilities.ts'
 
 // Since the plugin is very frequently imported, each function is imported on demand,
 // instead of loading the entire plugin.
 // This file should not contain any code, but only constants and dynamic imports of functions.
 
-const plugin: CatalogPlugin<MockConfig, MockCapabilities> = {
+const plugin: CatalogPlugin<GristConfig, GristCapabilities> = {
   async prepare (context) {
     const prepare = (await import('./lib/prepare.ts')).default
     return prepare(context)
@@ -20,32 +18,17 @@ const plugin: CatalogPlugin<MockConfig, MockCapabilities> = {
   },
 
   async getResource (context) {
-    const { getResource } = await import('./lib/imports.ts')
+    const { getResource } = await import('./lib/download.ts')
     return getResource(context)
   },
 
-  async publishDataset ({ dataset, publication }) {
-    debug('Publishing dataset ' + dataset.id)
-    publication.remoteDataset = {
-      id: 'my-mock-' + dataset.id,
-      title: dataset.title,
-      url: 'https://example.com/dataset/' + dataset.id,
-    }
-    return publication
-  },
-
-  async deleteDataset () {
-    debug('Deleting dataset...')
-  },
-
   metadata: {
-    title: 'Catalog Mock',
-    description: 'Mock plugin for Data Fair Catalog',
+    title: 'Catalog Grist',
+    description: 'Grist plugin for Data Fair Catalog',
     thumbnailPath: './lib/resources/thumbnail.svg',
     capabilities
   },
 
-  importConfigSchema,
   configSchema,
   assertConfigValid
 }

@@ -1,0 +1,104 @@
+{
+  "$id": "https://github.com/data-fair/catalog-grist/grist-dataset",
+  "x-exports": [
+    "types"
+  ],
+  "type": "object",
+  "title": "Grist Schemas",
+  "additionalProperties": false,
+  "$defs": {
+    "Organization": {
+      "type": "object",
+      "description": "representation of Grist organization",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "the organization's name"
+        },
+        "id": {
+          "type": "number",
+          "description": "the organization's id"
+        },
+        "domain": {
+          "description": "the organization's domain. In the url, it's represented by 'example.com/o/domain/' ",
+          "type": "string"
+        },
+        "owner": {
+          "type": "object",
+          "description": "the details about the owner",
+          "properties": {
+            "name": {
+              "description": "the owner's name",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "id",
+        "domain"
+      ]
+    },
+    "Workspace": {
+      "type": "object",
+      "description": "representation of Grist workspace",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "the workspace's name"
+        },
+        "id": {
+          "type": "number",
+          "description": "the workspace's id"
+        },
+        "docs": {
+          "type": "array",
+          "description": "the list of documents of the workspace",
+          "items": {
+            "$ref": "#/$defs/Document"
+          }
+        },
+        "org": {
+          "$ref": "#/$defs/Organization"
+        }
+      },
+      "required": [
+        "name",
+        "id"
+      ]
+    },
+    "Document": {
+      "type": "object",
+      "description": "representation of Grist document",
+      "properties": {
+        "name": {
+          "description": "the document's name",
+          "type": "string"
+        },
+        "id": {
+          "description": "the document's id",
+          "type": "string"
+        },
+        "workspace": {
+          "$ref": "#/$defs/Workspace"
+        }
+      },
+      "required": [
+        "name",
+        "id"
+      ]
+    },
+    "Table": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  }
+}
