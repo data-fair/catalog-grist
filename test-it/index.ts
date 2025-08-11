@@ -1,5 +1,5 @@
-import { list } from '../lib/imports.ts'
-import type { GetResourceContext, ListContext } from '@data-fair/types-catalogs'
+import { listResources } from '../lib/imports.ts'
+import type { GetResourceContext, ListResourcesContext } from '@data-fair/types-catalogs'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import nock from 'nock'
 import assert from 'node:assert'
@@ -9,15 +9,16 @@ import { getResource } from '../lib/download.ts'
 import fs from 'fs'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { logFunctions } from './test-utils.ts'
 
-describe('list', () => {
+describe('listResources', () => {
   const catalogConfig = {
     //   /!\ il faut le redéfinir a chaque test (a cause du memoize) à moins d'utiliser un current.resourceId différent à chaque test
     url: 'https://example.com',
     apiKey: 'abcde'
   }
 
-  const context: ListContext<GristConfig, GristCapabilities> = {
+  const context: ListResourcesContext<GristConfig, GristCapabilities> = {
     catalogConfig,
     params: {},
     secrets: { apiKey: 'abcde' }
@@ -45,7 +46,7 @@ describe('list', () => {
         .get('/api/orgs')
         .reply(200, mockResponse)
 
-      const result = await list(context)
+      const result = await listResources(context)
 
       assert.ok(result)
       assert.strictEqual(result.results.length, 2)
@@ -83,7 +84,7 @@ describe('list', () => {
         .get('/api/orgs/1')
         .reply(200, mockResponseOrg)
 
-      const result = await list(context)
+      const result = await listResources(context)
       assert.ok(result)
       assert.strictEqual(result.results.length, 2)
 
@@ -113,7 +114,7 @@ describe('list', () => {
         .get('/api/workspaces/1')
         .reply(200, mockDocs)
 
-      const result = await list(context)
+      const result = await listResources(context)
       assert.ok(result)
       assert.strictEqual(result.results.length, 2)
       assert.ok(result.results.some(doc => doc.title === 'doc1' && doc.id === 'org-1|/docs/d1'))
@@ -157,7 +158,7 @@ describe('list', () => {
         .get('/o/org-1/api/docs/d1')
         .reply(200, mockDoc)
 
-      const result = await list(context)
+      const result = await listResources(context)
 
       assert.strictEqual(result.count, 2)
       assert.strictEqual(JSON.stringify(result.results), JSON.stringify([
@@ -180,7 +181,7 @@ describe('list', () => {
         .reply(500, { error: 'Internal Server Error' })
 
       try {
-        await list(context)
+        await listResources(context)
         assert.fail('Expected an error to be thrown')
       } catch (error) {
         assert.ok(error instanceof Error && error.message.includes('Erreur pendant la récupération des données'))
@@ -213,7 +214,8 @@ describe('getResource', async () => {
       secrets,
       resourceId,
       tmpDir,
-      importConfig: {}
+      importConfig: {},
+      log: logFunctions
     }
 
     beforeEach(() => {
@@ -238,15 +240,33 @@ describe('getResource', async () => {
         .get('/o/domain1/api/docs/doc1/download/csv?tableId=table1')
         .reply(200, mockResponse)
 
+      nock('https://example.com')
+        .get('/o/domain1/api/docs/doc1/download/table-schema?tableId=table1')
+        .reply(200, {
+          dialect: { delimiter: ',' },
+          name: 'table1',
+          title: 'Table1',
+          schema: {
+            fields: [
+              { name: 'field1', description: 'Field 1' },
+              { name: 'field2', description: 'Field 2', type: 'array' }
+            ]
+          }
+        })
+
       const result = await getResource(context)
 
       assert.ok(result)
-      assert.strictEqual(result.id, resourceId)
-      assert.strictEqual(result.title, 'table1')
+      assert.strictEqual(result.id, 'table1')
+      assert.strictEqual(result.title, 'Table1')
       assert.strictEqual(result.format, 'csv')
       assert.strictEqual(result.mimeType, 'text/csv')
       assert.strictEqual(result.origin, 'https://example.com/o/domain1/doc1')
       assert.strictEqual(result.filePath, path.join(tmpDir, 'table1.csv'))
+      assert.deepEqual(result.schema, [
+        { key: 'field1', title: 'field1', description: 'Field 1', separator: undefined },
+        { key: 'field2', title: 'field2', description: 'Field 2', separator: ', ' }
+      ])
 
       // Verify that the file was written to the file system
       const fileContent = fs.readFileSync(path.join(tmpDir, 'table1.csv'), 'utf-8')

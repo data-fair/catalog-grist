@@ -25,7 +25,9 @@
       "x-i18n-errorMessage": {
         "fr": "L'URL doit commencer par http:// ou https:// et ne pas se terminer par `/`."
       },
-      "examples": ["https://example.com"]
+      "examples": [
+        "https://grist.numerique.gouv.fr"
+      ]
     },
     "apiKey": {
       "type": "string",
@@ -33,6 +35,12 @@
       "description": "Your api KEY, accessible from your **Profile Settings**. Create, copy and paste here your API key.",
       "x-i18n-description": {
         "fr": "Votre clé d'API, accessible depuis vos **Paramètres du compte**. Créer, copier et coller ici votre clé d'API."
+      },
+      "layout": {
+        "props": {
+          "type": "password",
+          "autocomplete": "new-password"
+        }
       }
     }
   }

@@ -1,13 +1,13 @@
-import type { CatalogPlugin, ListContext, Folder } from '@data-fair/types-catalogs'
+import type { CatalogPlugin, ListResourcesContext, Folder } from '@data-fair/types-catalogs'
 import type { Document, GristConfig, Organization, Table, Workspace } from '#types'
 import type { GristCapabilities } from './capabilities.ts'
-import axios from 'axios'
+import axios from '@data-fair/lib-node/axios.js'
 import memoize from 'memoize'
 
 /**
  * Alias for the type of lists of Folder/Resources from the list method.
  */
-type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
+type ResourceList = Awaited<ReturnType<CatalogPlugin['listResources']>>['results']
 
 /**
  * Sends an HTTP request to a given URL with an API key for authorization.
@@ -31,14 +31,29 @@ const sendRequest = memoize(async (url: string, apiKey: string): Promise<any> =>
     console.error(`Error while fetching data: ${err instanceof Error ? err.message : JSON.stringify(err)}`)
     throw new Error('Erreur pendant la récupération des données, pensez à vérifier si l\'url ou la clé d\'API est correcte')
   }
-}, { maxAge: 1000 * 60 * 5 })
+}, { maxAge: 1000 * 30 })
 
 /**
  * Lists available Grist resources based on the current folder ID.
- * @param  context - Context containing configuration, secrets, and parameters.
- * @returns An object containing the count of resources, the results, and the path.
+ *
+ * This function traverses the Grist API hierarchy to enumerate organizations -> workspaces ->
+ * documents -> tables, depending on the provided `currentFolderId` parameter. It builds a
+ * list of folders or resources that can be selected for further exploration or import.
+ *
+ * The traversal logic is as follows:
+ * - If `currentFolderId` is not set, lists organizations.
+ * - If `currentFolderId` refers to an organization, lists its workspaces.
+ * - If `currentFolderId` refers to a workspace, lists its documents.
+ * - Otherwise, lists tables of a document as resources.
+ *
+ * Each API call is authorized using the provided API key and memoized for performance.
+ * The returned object contains the count of items, the results array, and the navigation path.
+ *
+ * @param context - The context containing catalog configuration, secrets, and parameters.
+ * @returns An object with the count of resources, the results array, and the navigation path.
+ * @throws If any API request fails or returns a non-200 status code.
  */
-export const list = async ({ catalogConfig, secrets, params }: ListContext<GristConfig, GristCapabilities>): ReturnType<CatalogPlugin['list']> => {
+export const listResources = async ({ catalogConfig, secrets, params }: ListResourcesContext<GristConfig, GristCapabilities>): ReturnType<CatalogPlugin['listResources']> => {
   let url = catalogConfig.url
   const folders: ResourceList = []
   let path: Folder[] = []
@@ -46,7 +61,7 @@ export const list = async ({ catalogConfig, secrets, params }: ListContext<Grist
   if (!params.currentFolderId) {
     // List organizations (to select one)
     url += '/api/orgs'
-    const res : Organization[] = await sendRequest(url, secrets.apiKey)
+    const res: Organization[] = await sendRequest(url, secrets.apiKey)
     res.forEach((element: Organization) => {
       const addName = (element.name === 'Personal') ? ` (@${element.owner?.name})` : ''
       folders.push({

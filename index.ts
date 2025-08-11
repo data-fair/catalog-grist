@@ -12,9 +12,9 @@ const plugin: CatalogPlugin<GristConfig, GristCapabilities> = {
     return prepare(context)
   },
 
-  async list (context) {
-    const { list } = await import('./lib/imports.ts')
-    return list(context)
+  async listResources (context) {
+    const { listResources } = await import('./lib/imports.ts')
+    return listResources(context)
   },
 
   async getResource (context) {
