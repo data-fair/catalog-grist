@@ -1,4 +1,4 @@
-import type { CatalogPlugin, ListResourcesContext, Folder } from '@data-fair/types-catalogs'
+import type { CatalogPlugin, ListContext, Folder } from '@data-fair/types-catalogs'
 import type { Document, GristConfig, Organization, Table, Workspace } from '#types'
 import type { GristCapabilities } from './capabilities.ts'
 import axios from '@data-fair/lib-node/axios.js'
@@ -7,7 +7,7 @@ import memoize from 'memoize'
 /**
  * Alias for the type of lists of Folder/Resources from the list method.
  */
-type ResourceList = Awaited<ReturnType<CatalogPlugin['listResources']>>['results']
+type ResourceList = Awaited<ReturnType<CatalogPlugin['list']>>['results']
 
 /**
  * Sends an HTTP request to a given URL with an API key for authorization.
@@ -53,7 +53,7 @@ const sendRequest = memoize(async (url: string, apiKey: string): Promise<any> =>
  * @returns An object with the count of resources, the results array, and the navigation path.
  * @throws If any API request fails or returns a non-200 status code.
  */
-export const listResources = async ({ catalogConfig, secrets, params }: ListResourcesContext<GristConfig, GristCapabilities>): ReturnType<CatalogPlugin['listResources']> => {
+export const list = async ({ catalogConfig, secrets, params }: ListContext<GristConfig, GristCapabilities>): ReturnType<CatalogPlugin['list']> => {
   let url = catalogConfig.url
   const folders: ResourceList = []
   let path: Folder[] = []

@@ -1,4 +1,4 @@
-import { listResources } from '../lib/imports.ts'
+import { list } from '../lib/imports.ts'
 import type { GetResourceContext, ListResourcesContext } from '@data-fair/types-catalogs'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import nock from 'nock'
@@ -11,7 +11,7 @@ import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { logFunctions } from './test-utils.ts'
 
-describe('listResources', () => {
+describe('list', () => {
   const catalogConfig = {
     //   /!\ il faut le redéfinir a chaque test (a cause du memoize) à moins d'utiliser un current.resourceId différent à chaque test
     url: 'https://example.com',
@@ -46,7 +46,7 @@ describe('listResources', () => {
         .get('/api/orgs')
         .reply(200, mockResponse)
 
-      const result = await listResources(context)
+      const result = await list(context)
 
       assert.ok(result)
       assert.strictEqual(result.results.length, 2)
@@ -84,7 +84,7 @@ describe('listResources', () => {
         .get('/api/orgs/1')
         .reply(200, mockResponseOrg)
 
-      const result = await listResources(context)
+      const result = await list(context)
       assert.ok(result)
       assert.strictEqual(result.results.length, 2)
 
@@ -114,7 +114,7 @@ describe('listResources', () => {
         .get('/api/workspaces/1')
         .reply(200, mockDocs)
 
-      const result = await listResources(context)
+      const result = await list(context)
       assert.ok(result)
       assert.strictEqual(result.results.length, 2)
       assert.ok(result.results.some(doc => doc.title === 'doc1' && doc.id === 'org-1|/docs/d1'))
@@ -158,7 +158,7 @@ describe('listResources', () => {
         .get('/o/org-1/api/docs/d1')
         .reply(200, mockDoc)
 
-      const result = await listResources(context)
+      const result = await list(context)
 
       assert.strictEqual(result.count, 2)
       assert.strictEqual(JSON.stringify(result.results), JSON.stringify([
@@ -181,7 +181,7 @@ describe('listResources', () => {
         .reply(500, { error: 'Internal Server Error' })
 
       try {
-        await listResources(context)
+        await list(context)
         assert.fail('Expected an error to be thrown')
       } catch (error) {
         assert.ok(error instanceof Error && error.message.includes('Erreur pendant la récupération des données'))
@@ -215,7 +215,8 @@ describe('getResource', async () => {
       resourceId,
       tmpDir,
       importConfig: {},
-      log: logFunctions
+      log: logFunctions,
+      update: { metadata: true, schema: true }
     }
 
     beforeEach(() => {

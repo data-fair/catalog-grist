@@ -12,9 +12,9 @@ const plugin: CatalogPlugin<GristConfig, GristCapabilities> = {
     return prepare(context)
   },
 
-  async listResources (context) {
-    const { listResources } = await import('./lib/imports.ts')
-    return listResources(context)
+  async list (context) {
+    const { list } = await import('./lib/imports.ts')
+    return list(context)
   },
 
   async getResource (context) {
@@ -23,9 +23,7 @@ const plugin: CatalogPlugin<GristConfig, GristCapabilities> = {
   },
 
   metadata: {
-    title: 'Catalog Grist',
-    description: 'Grist plugin for Data Fair Catalog',
-    thumbnailPath: './lib/resources/thumbnail.svg',
+    title: 'Grist',
     capabilities
   },
 
