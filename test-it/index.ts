@@ -184,7 +184,7 @@ describe('list', () => {
         await list(context)
         assert.fail('Expected an error to be thrown')
       } catch (error) {
-        assert.ok(error instanceof Error && error.message.includes('Erreur pendant la récupération des données'))
+        assert.ok(error instanceof Error && error.message.includes('Error retrieving data'))
       }
     })
   })
@@ -284,7 +284,7 @@ describe('getResource', async () => {
         assert.fail('Expected an error to be thrown')
       } catch (error) {
         console.log(error)
-        assert.ok(error instanceof Error && error.message.includes('Erreur pendant la récupération des données'))
+        assert.ok(error instanceof Error && error.message.includes('Error retrieving data'))
       }
     })
   })

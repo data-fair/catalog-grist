@@ -16,9 +16,9 @@
     "url": {
       "type": "string",
       "title": "URL",
-      "description": "The url of the catalog. The url should not**pas** contains the `/o/name-of-team-space`",
+      "description": "The URL of the catalog. The URL should not contain the `/o/name-of-team-space`",
       "x-i18n-description": {
-        "fr": "L'URL de l'API du catalogue. L'URL ne doit **pas** contenir de `/o/nom-de-l-espace-d-equipe`"
+        "fr": "L'URL du catalogue. L'URL ne doit **pas** contenir de `/o/nom-de-l-espace-d-equipe`"
       },
       "pattern": "^https?://.*[^/]$",
       "errorMessage": "The URL must start with http:// or https:// and must not end with `/`.",
@@ -31,7 +31,10 @@
     },
     "apiKey": {
       "type": "string",
-      "title": "clé d'API",
+      "title": "API key",
+      "x-i18n-title": {
+        "fr": "Clé d'API"
+      },
       "description": "Your api KEY, accessible from your **Profile Settings**. Create, copy and paste here your API key.",
       "x-i18n-description": {
         "fr": "Votre clé d'API, accessible depuis vos **Paramètres du compte**. Créer, copier et coller ici votre clé d'API."

@@ -24,7 +24,7 @@ export const getResource = async (context: GetResourceContext<GristConfig>): Pro
       url = `${catalogConfig.url}/o/${domain}/api/docs/${docId}/download/csv?tableId=${tableId}`
     }
 
-    await log.step('Import de la ressource Grist')
+    await log.step('Importing the Grist resource')
     const res = await axios(url, {
       responseType: 'stream',
       headers: {
@@ -34,13 +34,13 @@ export const getResource = async (context: GetResourceContext<GristConfig>): Pro
 
     if (res.status !== 200) {
       console.error(`Failed to fetch resource: HTTP ${res.status}`, res.data)
-      throw new Error(`Erreur pendant la récupération des données (erreur HTTP ${res.status})`)
+      throw new Error(`Error retrieving data (HTTP error ${res.status})`)
     }
 
     const destFile = path.join(tmpDir, `${tableId}.csv`)
     const writer = fs.createWriteStream(destFile)
 
-    await log.task(`Downloading ${tableId}`, 'Télécargement de la ressource', NaN)
+    await log.task(`Downloading ${tableId}`, 'Downloading the resource', NaN)
 
     let downloaded = 0
     const logInterval = 500 // ms
@@ -68,7 +68,7 @@ export const getResource = async (context: GetResourceContext<GristConfig>): Pro
   } catch (error) {
     await log.error(`Failed to fetch resource: HTTP ${error instanceof Error ? error.message : JSON.stringify(error)}`)
     console.error(`Error in getResource: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
-    throw new Error(`Erreur pendant la récupération des données: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    throw new Error(`Error retrieving data: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
@@ -85,7 +85,7 @@ export const getResource = async (context: GetResourceContext<GristConfig>): Pro
  * @throws An error if the metadata retrieval fails or if the HTTP request returns a non-200 status code.
  */
 const getMetadataOnFields = async ({ catalogConfig, secrets, resourceId, log }: GetResourceContext<GristConfig>): Promise<Resource> => {
-  log.info('Récupération des métadonnées')
+  log.info('Retrieving metadata')
 
   const [domain, docId, tableId] = resourceId.split('|', 3)
   let url: string
@@ -102,7 +102,7 @@ const getMetadataOnFields = async ({ catalogConfig, secrets, resourceId, log }: 
 
   if (res.status !== 200) {
     console.error(`Failed to fetch resource metadata: HTTP ${res.status}`, res.data)
-    throw new Error(`Erreur pendant la récupération des métadonnées (erreur HTTP ${res.status})`)
+    throw new Error(`Error retrieving metadata (HTTP error ${res.status})`)
   }
 
   const data = res.data

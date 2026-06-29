@@ -29,7 +29,7 @@ const sendRequest = memoize(async (url: string, apiKey: string): Promise<any> =>
     return rep.data
   } catch (err) {
     console.error(`Error while fetching data: ${err instanceof Error ? err.message : JSON.stringify(err)}`)
-    throw new Error('Erreur pendant la récupération des données, pensez à vérifier si l\'url ou la clé d\'API est correcte')
+    throw new Error('Error retrieving data, please check that the URL and the API key are correct')
   }
 }, { maxAge: 1000 * 30 })
 

@@ -24,7 +24,7 @@ export default async ({ catalogConfig, capabilities, secrets }: PrepareContext<G
     })
   } catch (error) {
     console.error(`Error connecting to Grist API: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
-    throw new Error('Erreur de connexion à l\'API Grist, vérifiez l\'URL et la clé d\'API.')
+    throw new Error('Connection error to the Grist API, check the URL and the API key.')
   }
 
   return {
